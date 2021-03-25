@@ -1,0 +1,21 @@
+#Connect-VIServer -Server vimwp01.ecb01.ecb.de , vimwp02.ecb01.ecb.de
+Get-VMHost | Select Name, Version, Build, 
+    @{N="Cluster Name";E={($_ | Get-Cluster).Name}},Manufacturer, Model, ProcessorType,
+    @{N="NumCPU";E={($_| Get-View).Hardware.CpuInfo.NumCpuPackages}},
+    @{N="Cores";E={($_| Get-View).Hardware.CpuInfo.NumCpuCores}},
+    @{N="Service Console IP";E={($_|Get-VMHostNetworkAdapter -Console).IP}},
+	@{N="vMotion IP";E={($_|Get-VMHostNetworkAdapter -VMkernel).IP}},
+#	@{N="UUID";E={($_| Get-View).summary.hardware.uuid}},
+    @{N="HBA count";E={($_| Get-VMHostHba | where {$_.Type -eq "FibreChannel"}).Count}},
+	@{N="FC Device";E={[string]::Join(",",(($_ | Get-View).Config.StorageDevice.HostBusAdapter | where{$_.GetType().Name -eq "HostFibreChannelHba"} | %{$_.Device}))}},
+    @{N="FC NWWN";E={[string]::Join(",",(($_ | Get-View).Config.StorageDevice.HostBusAdapter | where{$_.GetType().Name -eq "HostFibreChannelHba"} | %{"{0:x}" -f $_.NodeWorldWideName}))}},
+    @{N="FC PWWN";E={[string]::Join(",",(($_ | Get-View).Config.StorageDevice.HostBusAdapter | where{$_.GetType().Name -eq "HostFibreChannelHba"} | %{"{0:x}" -f $_.PortWorldWideName}))}},
+	@{N="Physical NICS count";E={($_ | Get-View).Config.Network.Pnic.Count}},
+    @{N="vSwitches(Number of Ports)";E={[string]::Join(",",( $_ | Get-VirtualSwitch | %{$_.Name + "(" + $_.NumPorts + ")"}))}},
+    @{N="Portgroups";E={[string]::Join(",",( $_ | Get-VirtualPortGroup | %{$_.Name}))}},
+    @{N="SC Mem (MB)";E={"{0:f1}" -f (($_| Get-View).Config.ConsoleReservation.ServiceConsoleReserved/1MB)}},
+	# @{N="DatastoreName(Capacity in GB)";E={[string]::Join(",",( $_ | Get-Datastore | %{$_.Name + "(" + ("{0:f1}" -f ($_.CapacityMB/1KB)) + ")"}))}},
+	@{N="pNIC MAC";E={[string]::Join(",",($_ | Get-VMHostNetworkAdapter | %{$_.MAC}))}},
+    @{N="SC VlanId";E={($_| Get-VirtualPortGroup | Where-Object {$_.Name -eq "Service Console"}).VlanId}},
+	@{N="VMKernel VlanId";E={($_| Get-VirtualPortGroup | Where-Object {$_.Name -eq "VMkernel"}).VlanId}} | Export-Csv "z:\PROD_esx_inventory_1.csv" -NoTypeInformation
+	Disconnect-VIServer -Force
